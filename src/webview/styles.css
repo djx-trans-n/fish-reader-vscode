@@ -92,6 +92,18 @@ body {
 .muted {
   color: var(--text-secondary);
 }
+.titlebar-spacer {
+  flex: 1;
+}
+
+/* Claude Code chrome that only the claude preset renders (see the preset block below). */
+body:not([data-theme='claude']) :is(#session-title, .titlebar-actions, .tool-head, .diff-ln, .thinking-title, .msg-actions, .tb-slash, .tb-model, .send-ico) {
+  display: none;
+}
+/* CLI presets: an Edit split into its own turn still sits flush under the text that introduced it. */
+body:not([data-theme='claude']) .turn:has(+ .turn-cont) {
+  margin-bottom: 0;
+}
 
 /* ---- log ---- */
 #log {
@@ -678,49 +690,590 @@ body {
    Palettes sampled from real CLI screenshots.
    ============================================================ */
 
-/* ---- claude: Minimal Dark — 纯黑底 / 暖橙品牌色 / 无衬线正文 / 低密度 ---- */
+/* ---- claude: Claude Code for VS Code — 跟随编辑器主题 / 时间线对话流 / 暖橙点缀 ----
+   Measurements follow the Claude Code extension: 7px timeline dots joined by a 1px rail,
+   bordered user bubbles, tool calls as "Name target" headers over a bordered body. */
 body[data-theme='claude'] {
-  --bg-primary: #000000;
-  --bg-secondary: #0a0a0a;
-  --bg-input: #000000;
-  --bg-code: #0d0d0d;
-  --bg-hover: #1a1a1a;
+  --bg-primary: var(--vscode-editor-background, #1f1f1f);
+  --bg-secondary: var(--vscode-sideBar-background, #181818);
+  --bg-input: var(--vscode-input-background, #313131);
+  --bg-code: var(--vscode-textCodeBlock-background, #7f7f7f26);
+  --bg-hover: var(--vscode-toolbar-hoverBackground, #5a5d5e50);
 
-  --text-primary: #ffffff;
-  --text-secondary: #808080;
-  --text-tertiary: #5a5a5a;
+  --text-primary: var(--vscode-foreground, #cccccc);
+  --text-secondary: var(--vscode-descriptionForeground, #9d9d9d);
+  --text-tertiary: var(--vscode-disabledForeground, #cccccc80);
 
-  --border: #2a2a2a;
-  --border-soft: #1e1e1e;
-  --input-border: #2a2a2a;
+  --border: var(--vscode-sideBarActivityBarTop-border, var(--vscode-panel-border, #2b2b2b));
+  --border-soft: var(--border);
+  --input-border: var(--vscode-inlineChatInput-border, var(--vscode-input-border, var(--vscode-widget-border, #7f7f7f66)));
 
   --accent: #d97757;
-  --btn-bg: #d97757;
-  --btn-fg: #000000;
-  --accent-user: #e19d9c;
+  --btn-bg: #c6613f;
+  --btn-fg: #faf9f5;
+  --accent-user: var(--text-primary);
   --accent-assistant: #d97757;
-  --accent-thinking: #808080;
-  --accent-string: #e19d9c;
-  --diff-add-text: #60b941;
-  --diff-del-text: #ed6b5e;
+  --accent-thinking: var(--text-secondary);
+  --accent-string: #d97757;
+  --diff-add-bg: var(--vscode-diffEditor-insertedLineBackground, #9bb95533);
+  --diff-del-bg: var(--vscode-diffEditor-removedLineBackground, #ff000033);
+  --diff-add-text: var(--vscode-gitDecoration-addedResourceForeground, #81b88b);
+  --diff-del-text: var(--vscode-gitDecoration-deletedResourceForeground, #c74e39);
 
-  --font-read: var(--font-sans);
-  --reader-line: 2;
-  --radius: 4px;
-  --sel-bg: #1a1a1a;
-  --bubble-bg: transparent;
+  --font-read: var(--vscode-chat-font-family, var(--font-sans));
+  --reader-line: 1.6;
+  --radius: 6px;
+  --sel-bg: var(--vscode-list-activeSelectionBackground, #04395e);
+  --bubble-bg: var(--bg-input);
   --bubble-bar: transparent;
+
+  --cc-chrome-fs: var(--vscode-chat-font-size, 13px);
+  --cc-dot: var(--text-secondary);
+  --cc-dot-ok: #74c991;
+  --cc-dot-fail: #c74e39;
+  --cc-link: var(--vscode-textLink-foreground, #4daafc);
+  --cc-pill-bg: color-mix(in srgb, var(--text-primary) 10%, transparent);
+
+  font-family: var(--font-read);
 }
-/* 极简：正文不加气泡，仅靠留白分隔 */
-body[data-theme='claude'] .user-turn {
-  border-color: transparent;
-  padding: 2px 0;
+
+/* header: session title on the left, icon actions on the right */
+body[data-theme='claude'] #titlebar {
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+  font-family: inherit;
+  font-size: var(--cc-chrome-fs);
+  user-select: none;
+}
+body[data-theme='claude'] #brand-icon,
+body[data-theme='claude'] #brand-name,
+body[data-theme='claude'] #brand-sub {
+  display: none;
+}
+body[data-theme='claude'] #session-title {
+  display: block;
+  min-width: 0;
+  max-width: 300px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+body[data-theme='claude'] #session-title:hover {
+  background: var(--bg-hover);
+}
+body[data-theme='claude'] .titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* transcript: every turn is padded (not margined) so the timeline rail stays continuous */
+body[data-theme='claude'] #log {
+  padding: 20px 20px 40px;
 }
 body[data-theme='claude'] .turn {
-  margin-bottom: 22px;
+  --pad-top: 8px;
+  --first-line: calc(var(--reader-line) * 0.5em);
+  position: relative;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: var(--pad-top) 0 8px;
+  line-height: var(--reader-line);
 }
-body[data-theme='claude'] #titlebar {
-  border-bottom-color: var(--border);
+body[data-theme='claude'] .user-turn {
+  --pad-top: 12px;
+  padding-bottom: 12px;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+body[data-theme='claude'] .turn:first-child {
+  --pad-top: 0px;
+}
+body[data-theme='claude'] .turn.tl {
+  padding-left: 30px;
+}
+body[data-theme='claude'] .turn.tl::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 9px;
+  top: calc(var(--pad-top) + var(--first-line) - 3.5px);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cc-dot);
+}
+body[data-theme='claude'] .turn.tl-ok::before {
+  background: var(--cc-dot-ok);
+}
+body[data-theme='claude'] .turn.tl-fail::before {
+  background: var(--cc-dot-fail);
+}
+body[data-theme='claude'] .turn.tl-progress::before {
+  animation: cc-blink 1s linear infinite;
+}
+@keyframes cc-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+/* rail: runs through consecutive timeline turns, starting / ending at the outer dots */
+body[data-theme='claude'] .turn.tl::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+body[data-theme='claude'] .turn.tl:not(.tl + .tl)::after {
+  top: calc(var(--pad-top) + var(--first-line));
+}
+body[data-theme='claude'] .turn.tl:not(:has(+ .tl))::after {
+  bottom: auto;
+  height: calc(var(--pad-top) + var(--first-line));
+}
+body[data-theme='claude'] .turn.tl:not(.tl + .tl):not(:has(+ .tl))::after {
+  display: none;
+}
+
+/* user message: bordered bubble, no "> user" prefix */
+body[data-theme='claude'] .user-prefix {
+  display: none;
+}
+body[data-theme='claude'] .user-text {
+  display: block;
+  padding: 4px 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* assistant text: just prose next to its dot */
+body[data-theme='claude'] .assistant-head,
+body[data-theme='claude'] .chapter-enter,
+body[data-theme='claude'] .cursor {
+  display: none;
+}
+body[data-theme='claude'] .novel-text {
+  letter-spacing: normal;
+  word-break: break-word;
+}
+body[data-theme='claude'] .msg-actions {
+  display: flex;
+  gap: 2px;
+  margin: 6px 0 0 -4px;
+  opacity: 0;
+}
+/* visible on the latest reply, on hover for older ones */
+body[data-theme='claude'] .turn:last-child .msg-actions,
+body[data-theme='claude'] .turn:hover .msg-actions {
+  opacity: 1;
+}
+body[data-theme='claude'] .msg-actions .icon-btn {
+  padding: 2px;
+}
+
+/* tool call header: bold tool name + target (+N -M for edits) */
+body[data-theme='claude'] .tool-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+  min-width: 0;
+}
+body[data-theme='claude'] .tool-name {
+  font-weight: 700;
+}
+body[data-theme='claude'] .tool-target {
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+body[data-theme='claude'] .tool-target.is-link {
+  color: var(--cc-link);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+body[data-theme='claude'] .tool-stats {
+  display: inline-flex;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+body[data-theme='claude'] .tool-ins {
+  color: var(--diff-add-text);
+}
+body[data-theme='claude'] .tool-del {
+  color: var(--diff-del-text);
+}
+
+/* edit body: bordered box, line-number gutter, tinted rows, untinted code */
+body[data-theme='claude'] .diff-block {
+  margin: 8px 0 0;
+  border: 0.5px solid var(--input-border);
+  border-radius: 5px;
+  background: var(--bg-primary);
+}
+body[data-theme='claude'] .diff-head {
+  display: none;
+}
+body[data-theme='claude'] .diff-body {
+  padding: 4px 0;
+  font-size: 0.85em;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+body[data-theme='claude'] .diff-line {
+  min-width: max-content;
+  padding: 0 8px 0 0;
+}
+body[data-theme='claude'] .diff-ln {
+  display: block;
+  flex: 0 0 3.2em;
+  padding-right: 6px;
+  text-align: right;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  user-select: none;
+}
+body[data-theme='claude'] .diff-sign {
+  flex: 0 0 1.4em;
+  width: 1.4em;
+  text-align: center;
+}
+body[data-theme='claude'] .diff-line .diff-code {
+  color: var(--text-primary);
+}
+body[data-theme='claude'] .diff-add .diff-sign {
+  color: var(--diff-add-text);
+}
+body[data-theme='claude'] .diff-del .diff-sign {
+  color: var(--diff-del-text);
+}
+
+/* thinking: collapsible "Thinking ⌄" summary over secondary-coloured text */
+body[data-theme='claude'] .thinking-dot,
+body[data-theme='claude'] .thinking-label {
+  display: none;
+}
+body[data-theme='claude'] .thinking-head {
+  font-family: inherit;
+  font-size: inherit;
+}
+body[data-theme='claude'] .thinking-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  cursor: pointer;
+  user-select: none;
+}
+body[data-theme='claude'] .thinking-title:hover {
+  opacity: 1;
+}
+.thinking-chev {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s;
+}
+body[data-theme='claude'] .thinking-turn.collapsed .thinking-chev {
+  transform: rotate(-90deg);
+}
+body[data-theme='claude'] .thinking-turn.collapsed .thinking-log {
+  display: none;
+}
+body[data-theme='claude'] .thinking-log {
+  margin: 4px 0 0;
+  padding-left: 0;
+  border-left: none;
+}
+body[data-theme='claude'] .thinking-line {
+  font-family: inherit;
+  font-size: inherit;
+  font-style: normal;
+  line-height: var(--reader-line);
+}
+
+/* markdown bits */
+body[data-theme='claude'] .inline-code {
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: var(--vscode-textPreformat-foreground, var(--text-primary));
+  background: var(--vscode-textPreformat-background, #7f7f7f26);
+  word-break: break-word;
+}
+body[data-theme='claude'] .code-block {
+  margin: 8px 0;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  background: var(--bg-code);
+  font-size: 0.85em;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* /toc and /search results */
+body[data-theme='claude'] .toc-list,
+body[data-theme='claude'] .search-list {
+  margin-top: 6px;
+  font-family: inherit;
+  font-size: 0.92em;
+}
+body[data-theme='claude'] .toc-item,
+body[data-theme='claude'] .search-item {
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+body[data-theme='claude'] .toc-item:hover,
+body[data-theme='claude'] .search-item:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+body[data-theme='claude'] .toc-current {
+  padding-left: 8px;
+  border-left: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+body[data-theme='claude'] .toc-current-tag {
+  color: var(--btn-fg);
+  background: var(--btn-bg);
+}
+body[data-theme='claude'] .toc-selected {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+  outline-color: var(--vscode-focusBorder, #0078d4);
+}
+body[data-theme='claude'] .search-chap {
+  color: var(--text-secondary);
+}
+
+/* notices (/theme feedback): Claude Code's italic meta line */
+body[data-theme='claude'] .system-turn {
+  padding: 12px 8px;
+  font-family: inherit;
+  font-size: var(--reader-fs);
+  font-style: italic;
+  opacity: 0.8;
+}
+body[data-theme='claude'] .system-prefix {
+  display: none;
+}
+
+/* slash menu */
+body[data-theme='claude'] #slash-menu {
+  left: 16px;
+  right: 16px;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 4px 0;
+  border-color: var(--vscode-menu-border, var(--input-border));
+  border-radius: 6px;
+  background: var(--vscode-menu-background, var(--bg-input));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36);
+}
+body[data-theme='claude'] .slash-menu-head {
+  padding: 4px 12px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+body[data-theme='claude'] .slash-item {
+  margin: 0 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: var(--cc-chrome-fs);
+}
+body[data-theme='claude'] .slash-name {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+body[data-theme='claude'] .slash-desc {
+  font-size: 0.92em;
+  color: var(--text-secondary);
+}
+
+/* composer: rounded input, toolbar row under a hairline, terracotta square send button */
+body[data-theme='claude'] #composer {
+  padding: 4px 16px 16px;
+}
+body[data-theme='claude'] .composer-box {
+  --ring: var(--accent);
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--bg-input);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+body[data-theme='claude'] .composer-box[data-mode='acceptEdits'] {
+  --ring: var(--text-primary);
+}
+body[data-theme='claude'] .composer-box:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 12%, transparent),
+    0 1px 2px color-mix(in srgb, var(--ring), transparent 80%);
+}
+body[data-theme='claude'] #input {
+  display: block;
+  padding: 10px 14px;
+  color: var(--vscode-input-foreground, var(--text-primary));
+  font-family: inherit;
+  font-size: var(--cc-chrome-fs);
+  line-height: 1.5;
+}
+body[data-theme='claude'] #input::placeholder {
+  color: var(--vscode-input-placeholderForeground, var(--text-secondary));
+}
+body[data-theme='claude'] .composer-toolbar {
+  margin-top: 0;
+  padding: 5px;
+  gap: 6px;
+  border-top: 0.5px solid var(--input-border);
+}
+body[data-theme='claude'] .tb-left,
+body[data-theme='claude'] .tb-right {
+  gap: 2px;
+}
+body[data-theme='claude'] .tb-btn {
+  height: 26px;
+  min-width: 26px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 300;
+}
+body[data-theme='claude'] .tb-fs {
+  display: none;
+}
+body[data-theme='claude'] .tb-slash {
+  display: flex;
+}
+.tb-slash-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1.2px solid currentColor;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+}
+body[data-theme='claude'] #boss-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+}
+body[data-theme='claude'] .tb-btn.boss-active {
+  border: none;
+  background: var(--cc-pill-bg);
+  color: var(--text-primary);
+}
+body[data-theme='claude'] .file-chip {
+  margin-left: 4px;
+  font-family: inherit;
+}
+body[data-theme='claude'] .file-chip:not(:empty)::before {
+  content: none;
+}
+body[data-theme='claude'] .tb-model {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--cc-pill-bg);
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+body[data-theme='claude'] .tb-hint {
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: inherit;
+  color: var(--text-secondary);
+}
+body[data-theme='claude'] .send-btn {
+  width: 26px;
+  height: 26px;
+  margin-left: 2px;
+  border-radius: 5px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+}
+body[data-theme='claude'] .send-btn:hover {
+  background: var(--btn-bg);
+  filter: brightness(1.1);
+}
+body[data-theme='claude'] .send-glyph {
+  display: none;
+}
+body[data-theme='claude'] .send-ico {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body[data-theme='claude'] .composer-box.is-empty .send-btn {
+  opacity: 0.4;
+  filter: none;
+  cursor: default;
+}
+body[data-theme='claude'] .composer-box[data-mode='acceptEdits'] .send-btn {
+  background: var(--text-primary);
+  color: var(--bg-primary);
 }
 
 /* ---- codex: Plain Terminal — 纯黑底 / 几乎无强调色 / 等宽 / 高密度朴素 ---- */

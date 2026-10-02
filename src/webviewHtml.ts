@@ -81,23 +81,38 @@ export function getHtml(webview: vscode.Webview, extensionUri: vscode.Uri): stri
       <span id="brand-icon">✳</span>
       <span id="brand-name">Claude</span>
       <span id="brand-sub" class="muted"></span>
+      <span id="session-title">Claude Code</span>
+      <span class="titlebar-spacer"></span>
+      <div class="titlebar-actions">
+        <button class="icon-btn" title="Bookmark session" tabindex="-1">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.5h7v11L8 11l-3.5 2.5z"/></svg>
+        </button>
+        <button class="icon-btn" title="Past conversations" tabindex="-1">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3.2l2.2 1.4"/></svg>
+        </button>
+        <button class="icon-btn" title="New session" tabindex="-1">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5a5.5 5.5 0 1 1-4.6 8.5L2.5 13.5l.6-2.9A5.5 5.5 0 0 1 8 2.5z"/><path d="M8 5.8v4.4M5.8 8h4.4"/></svg>
+        </button>
+      </div>
     </header>
     <main id="log" tabindex="0"></main>
     <footer id="composer">
       <div id="slash-menu" class="hidden"></div>
-      <div class="composer-box">
+      <div class="composer-box is-empty" id="composer-box" data-mode="default">
         <textarea id="input" rows="1" placeholder="输入消息…  / 唤起命令"></textarea>
         <div class="composer-toolbar">
           <div class="tb-left">
             <button class="tb-btn" id="plus-btn" title="Add context">+</button>
+            <button class="tb-btn tb-slash" id="slash-btn" title="Slash commands"><span class="tb-slash-glyph">/</span></button>
             <button class="tb-btn" id="boss-btn" title="Boss mode ⌘B">&lt;/&gt;</button>
             <button class="tb-btn tb-fs" id="fs-dec" title="减小字号 (Ctrl/Cmd -)">A-</button>
             <button class="tb-btn tb-fs" id="fs-inc" title="增大字号 (Ctrl/Cmd +)">A+</button>
             <span class="file-chip" id="file-chip"></span>
           </div>
           <div class="tb-right">
+            <span class="tb-model">Opus 5.5</span>
             <span class="tb-hint" id="tb-hint">Ask before edits</span>
-            <button class="send-btn" id="send-btn" title="Send (Enter)">↑</button>
+            <button class="send-btn" id="send-btn" title="Send (Enter)"><span class="send-glyph">↑</span><svg class="send-ico" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15.5v-11M5.5 9 10 4.5 14.5 9"/></svg></button>
           </div>
         </div>
       </div>

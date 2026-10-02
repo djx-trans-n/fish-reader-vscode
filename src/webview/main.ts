@@ -14,24 +14,49 @@ const vscode = acquireVsCodeApi();
 const logEl = document.getElementById('log') as HTMLElement;
 const inputEl = document.getElementById('input') as HTMLTextAreaElement;
 const slashMenu = document.getElementById('slash-menu') as HTMLElement;
+// Elements added after 0.1.4 may be missing while a not-yet-reloaded extension host still serves
+// the old HTML, so they are optional (like the A-/A+ buttons below).
+const composerBox = document.getElementById('composer-box') as HTMLElement | null;
 const bossBtn = document.getElementById('boss-btn') as HTMLButtonElement;
 const sendBtn = document.getElementById('send-btn') as HTMLButtonElement;
 const plusBtn = document.getElementById('plus-btn') as HTMLButtonElement;
+const slashBtn = document.getElementById('slash-btn') as HTMLButtonElement | null;
 const tbHint = document.getElementById('tb-hint') as HTMLElement;
 const appEl = document.getElementById('app') as HTMLElement;
 const fsDecBtn = document.getElementById('fs-dec') as HTMLButtonElement | null;
 const fsIncBtn = document.getElementById('fs-inc') as HTMLButtonElement | null;
 
+type ReaderTheme = 'claude' | 'codex' | 'deepseek';
+const THEMES: ReaderTheme[] = ['claude', 'codex', 'deepseek'];
+const THEME_LABELS: Record<ReaderTheme, string> = {
+  claude: 'Claude Code · 跟随 VS Code 主题 / 时间线对话流 / 暖橙点缀',
+  codex: 'Codex · 原生终端 / 等宽正文 / 近乎无强调色',
+  deepseek: 'DeepSeek TUI · 深靛仪表盘 / 等宽正文 / 多语义色',
+};
+
+function isTheme(v: string): v is ReaderTheme {
+  return (THEMES as string[]).includes(v);
+}
+
+function currentTheme(): ReaderTheme {
+  const s = vscode.getState() as { theme?: string } | null;
+  return s?.theme && isTheme(s.theme) ? s.theme : 'claude';
+}
+
 // ---------- reading font size (persisted via vscode.setState) ----------
 const FS_MIN = 11;
 const FS_MAX = 26;
 const FS_DEFAULT = 15;
-function readSavedFontSize(): number {
+// Claude Code's chat font is 13px; the claude theme uses that until the user picks a size.
+const FS_DEFAULT_CLAUDE = 13;
+function savedFontSize(): number | undefined {
   const s = (vscode.getState() as { fontSize?: number } | undefined) ?? {};
-  const n = typeof s.fontSize === 'number' ? s.fontSize : FS_DEFAULT;
-  return Math.max(FS_MIN, Math.min(FS_MAX, n));
+  return typeof s.fontSize === 'number' ? Math.max(FS_MIN, Math.min(FS_MAX, s.fontSize)) : undefined;
 }
-let fontSize = readSavedFontSize();
+function defaultFontSize(): number {
+  return currentTheme() === 'claude' ? FS_DEFAULT_CLAUDE : FS_DEFAULT;
+}
+let fontSize = savedFontSize() ?? defaultFontSize();
 function applyFontSize() {
   document.documentElement.style.setProperty('--reader-fs', fontSize + 'px');
 }
@@ -39,6 +64,14 @@ function setFontSize(px: number) {
   fontSize = Math.max(FS_MIN, Math.min(FS_MAX, px));
   applyFontSize();
   vscode.setState({ ...(vscode.getState() as object), fontSize });
+}
+/** Forget the chosen size so the reader follows the theme default again. */
+function resetFontSize() {
+  const s = { ...(vscode.getState() as object) } as { fontSize?: number };
+  delete s.fontSize;
+  vscode.setState(s);
+  fontSize = defaultFontSize();
+  applyFontSize();
 }
 applyFontSize();
 fsDecBtn?.addEventListener('click', () => setFontSize(fontSize - 1));
@@ -54,7 +87,7 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
     setFontSize(fontSize - 1);
   } else if (e.key === '0') {
     e.preventDefault();
-    setFontSize(FS_DEFAULT);
+    resetFontSize();
   }
 });
 
@@ -62,26 +95,24 @@ let commands: CommandSpec[] = [];
 let bossMode = false;
 let pageAnchor = 0;
 
-type ReaderTheme = 'claude' | 'codex' | 'deepseek';
-const THEMES: ReaderTheme[] = ['claude', 'codex', 'deepseek'];
-const THEME_LABELS: Record<ReaderTheme, string> = {
-  claude: 'Claude Code · 纯黑极简 / 无衬线正文 / 暖橙点缀',
-  codex: 'Codex · 原生终端 / 等宽正文 / 近乎无强调色',
-  deepseek: 'DeepSeek TUI · 深靛仪表盘 / 等宽正文 / 多语义色',
-};
-
-function isTheme(v: string): v is ReaderTheme {
-  return (THEMES as string[]).includes(v);
-}
-
-function currentTheme(): ReaderTheme {
-  const s = vscode.getState() as { theme?: string } | null;
-  return s?.theme && isTheme(s.theme) ? s.theme : 'claude';
-}
+const DEFAULT_PLACEHOLDER = inputEl.placeholder;
+const CLAUDE_PLACEHOLDER = `${navigator.userAgent.includes('Mac') ? '⌘ Esc' : 'Ctrl+Esc'} to focus or unfocus Claude`;
 
 function applyTheme(theme: ReaderTheme) {
   document.body.dataset.theme = theme;
   vscode.setState({ ...(vscode.getState() as object), theme });
+  // Claude Code's own composer hint; the CLI themes keep the slash-command hint.
+  inputEl.placeholder = theme === 'claude' ? CLAUDE_PLACEHOLDER : DEFAULT_PLACEHOLDER;
+  if (savedFontSize() === undefined) {
+    fontSize = defaultFontSize();
+    applyFontSize();
+  }
+}
+
+/** Composer chrome for reading vs boss mode: Claude Code's permission-mode label + send colour. */
+function setComposerMode(boss: boolean) {
+  tbHint.textContent = boss ? 'Edit automatically' : 'Ask before edits';
+  if (composerBox) composerBox.dataset.mode = boss ? 'acceptEdits' : 'default';
 }
 
 /** `/theme` 无参时循环切换,带参时切到指定风格。 */
@@ -177,6 +208,7 @@ window.addEventListener('message', (ev: MessageEvent<ToWebview>) => {
     case 'page-end':
       // Pin viewport to the start of the freshly-rendered page; user scrolls down.
       enqueue(async () => {
+        ui.endReply();
         logEl.scrollTop = Math.min(pageAnchor, logEl.scrollHeight - logEl.clientHeight);
       });
       break;
@@ -207,7 +239,7 @@ window.addEventListener('message', (ev: MessageEvent<ToWebview>) => {
       bossMode = false;
       ui.setBrand(false);
       bossBtn.classList.remove('boss-active');
-      tbHint.textContent = 'Ask before edits';
+      setComposerMode(false);
       break;
     case 'error':
       enqueue(async () => ui.staticText('error', msg.message, false));
@@ -215,23 +247,19 @@ window.addEventListener('message', (ev: MessageEvent<ToWebview>) => {
     case 'set-input':
       inputEl.value = msg.text;
       inputEl.focus();
+      autoSize();
       break;
     case 'boss-enter':
       bossMode = true;
       hardReset();
-      ui.setBrand(true);
+      ui.setBrand(true, msg.turns[0]?.prompt);
       bossBtn.classList.add('boss-active');
-      tbHint.textContent = 'Edit automatically';
+      setComposerMode(true);
       for (const t of msg.turns) {
         enqueue(async () => ui.user(t.prompt));
         enqueue(() => ui.thinking(t.thinking));
         enqueue(() => ui.streamText(undefined, t.analysis));
-        if (t.diff) {
-          enqueue(async () => {
-            const { turn } = ui.beginAssistant(`edited ${t.diff!.fileName}`);
-            await ui.diff(turn, t.diff!);
-          });
-        }
+        if (t.diff) enqueue(() => ui.editTurn(t.diff!, true));
       }
       break;
     case 'boss-exit':
@@ -241,7 +269,7 @@ window.addEventListener('message', (ev: MessageEvent<ToWebview>) => {
       hardReset();
       ui.setBrand(false);
       bossBtn.classList.remove('boss-active');
-      tbHint.textContent = 'Ask before edits';
+      setComposerMode(false);
       break;
   }
 });
@@ -368,6 +396,8 @@ function submit() {
 function autoSize() {
   inputEl.style.height = 'auto';
   inputEl.style.height = Math.min(120, inputEl.scrollHeight) + 'px';
+  // Every programmatic or typed value change ends here; Claude Code dims Send while empty.
+  composerBox?.classList.toggle('is-empty', inputEl.value.trim() === '');
 }
 
 inputEl.addEventListener('input', () => {
@@ -432,6 +462,13 @@ sendBtn.addEventListener('click', () => {
 // `+` opens a native file picker on the extension side to load a book.
 plusBtn.addEventListener('click', () => {
   send({ type: 'pick-file' });
+});
+
+// `/` opens the slash-command menu, like the button in Claude Code's composer.
+slashBtn?.addEventListener('click', () => {
+  inputEl.focus();
+  if (!inputEl.value.startsWith('/')) inputEl.value = '/';
+  inputEl.dispatchEvent(new Event('input', { bubbles: true }));
 });
 
 // ---------- mouse-leave auto boss ----------

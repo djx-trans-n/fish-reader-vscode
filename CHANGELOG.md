@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `claude` 风格改为还原 Claude Code for VS Code 插件界面:配色跟随 VSCode 主题(不再固定纯黑),时间线圆点与连线、带边框的用户气泡、`Edit 文件 +N -M` / `Read 章节` 工具调用、带行号的 diff、可折叠的 `Thinking`、会话标题栏、Claude Code 同款输入框(`/` 命令按钮、模型标签、方形发送按钮,老板模式下切到 "Edit automatically" 配色)。
+- `claude` 风格默认正文字号 13px(与 Claude Code 一致);隐藏 `A-` / `A+`,改用 `Ctrl/Cmd` + `+` / `-`;`Ctrl/Cmd+0` 复位到当前风格的默认字号。
+- 每章末尾一段下方显示复制 / 书签按钮(书签 = `/书签 add`)。
+- codex / deepseek 风格外观不变。
+
 ## 0.1.4
 
 - 新增 `/theme` 命令:Claude Code / Codex / DeepSeek TUI 三款阅读风格,配色、正文字体、行距与信息密度整体切换;不带参数循环切换,选择随会话保存。
