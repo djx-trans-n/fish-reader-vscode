@@ -146,7 +146,6 @@ export class EditorPanelManager {
       ],
     });
     this.panel = panel;
-    panel.iconPath = vscode.Uri.joinPath(this.extensionUri, 'media', 'icon.png');
 
     const post = (msg: ToWebview) => panel.webview.postMessage(msg);
     const controller = new Controller(post, this.state, this.scanner);
