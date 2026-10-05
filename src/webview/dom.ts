@@ -1,5 +1,5 @@
-import { DiffHunk, DiffLine, PageMeta, SearchResult } from '../types';
-import { typeInto, revealLines } from './streaming';
+import { DiffHunk, DiffLine, FakeStep, PageMeta, SearchResult } from '../types';
+import { typeInto, revealLines, pause, epochNow } from './streaming';
 
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -218,16 +218,25 @@ export class UI {
     last.appendChild(bar);
   }
 
-  async streamText(label: string | undefined, text: string) {
+  /**
+   * Stream prose char by char. With `markdown`, line breaks are kept while streaming and
+   * the finished text is re-rendered with bold / inline code / fenced blocks.
+   */
+  async streamText(label: string | undefined, text: string, markdown = false) {
     const { turn, body } = this.beginAssistant(label);
     turn.classList.add('tl-progress');
     const cursor = el('span', 'cursor');
     body.appendChild(cursor);
-    const textSpan = el('span');
+    const textSpan = el('span', markdown ? 'stream-md' : undefined);
     body.insertBefore(textSpan, cursor);
     await typeInto(textSpan, text, () => this.scroll());
     cursor.remove();
     turn.classList.remove('tl-progress');
+    if (markdown && textSpan.textContent === text) {
+      body.textContent = '';
+      renderMarkdown(body, text);
+      this.scroll();
+    }
   }
 
   /** Render assistant text that may contain markdown (no char streaming). */
@@ -256,26 +265,123 @@ export class UI {
     for (const d of diffs) this.diff(turn, d, true);
   }
 
-  /** A disguise turn inserted between paragraphs: analysis line + a diff (instant). */
-  disguiseTurn(analysis: string, hunk: DiffHunk) {
-    const { body } = this.beginAssistant(`edited ${hunk.fileName}`);
-    const textSpan = el('div');
-    textSpan.textContent = analysis;
-    body.appendChild(textSpan);
-    // Claude Code shows the edit as its own tool call; the CLI themes keep it under this turn.
-    void this.editTurn(hunk, false, true);
+  /**
+   * Play one generated step of a fake assistant turn. `animate` honours the step's
+   * pre-rolled pauses and streams the content; otherwise everything lands at once
+   * (reading-mode disguise, where the page is pinned to its top anyway).
+   */
+  async playStep(step: FakeStep, animate: boolean): Promise<void> {
+    if (animate && !(await pause(step.delayMs))) return;
+    switch (step.kind) {
+      case 'thinking':
+        if (animate) await this.thinking(step.lines);
+        else this.thinkingInstant(step.lines);
+        return;
+      case 'text':
+        if (animate) await this.streamText(undefined, step.text, true);
+        else this.staticText(undefined, step.text, true);
+        return;
+      case 'edit':
+        await this.editTurn(step.diff, animate, animate ? step.runMs : 0);
+        return;
+      case 'tool':
+        await this.toolTurn(step, animate);
+        return;
+    }
   }
 
-  /** An "Edit <file>" tool call carrying a diff; `animate` reveals it line by line. */
-  async editTurn(hunk: DiffHunk, animate = false, cont = false) {
+  /** Several steps back to back, instantly (reading-mode disguise between paragraphs). */
+  playStepsInstant(steps: FakeStep[]) {
+    for (const s of steps) void this.playStep(s, false);
+  }
+
+  private thinkingInstant(lines: string[]) {
+    const turn = el('div', 'turn tl thinking-turn');
+    const head = el('div', 'thinking-head');
+    head.appendChild(el('span', 'thinking-dot', '●'));
+    head.appendChild(el('span', 'thinking-label', 'thinking...'));
+    const title = el('span', 'thinking-title', 'Thinking');
+    title.appendChild(icon('M4.5 6.5 8 10l3.5-3.5', 'thinking-chev'));
+    title.addEventListener('click', () => turn.classList.toggle('collapsed'));
+    head.appendChild(title);
+    turn.appendChild(head);
+    const logBox = el('div', 'thinking-log');
+    for (const line of lines) logBox.appendChild(el('div', 'thinking-line', line));
+    turn.appendChild(logBox);
+    this.log.appendChild(turn);
+  }
+
+  /** An "Edit <file>" tool call carrying a diff; `animate` reveals it line by line after `runMs`. */
+  async editTurn(hunk: DiffHunk, animate = false, runMs = 0) {
     const { turn } = this.beginAssistant(`edited ${hunk.fileName}`, {
       tool: { name: 'Edit', target: hunk.fileName, link: true, stats: diffStats(hunk) },
       tone: 'ok',
-      cont,
     });
-    if (animate) turn.classList.add('tl-progress');
+    if (animate) {
+      turn.classList.add('tl-progress');
+      if (!(await pause(runMs))) return;
+    }
     await this.diff(turn, hunk, !animate);
     turn.classList.remove('tl-progress');
+  }
+
+  /**
+   * A non-edit tool call (Read / Grep / Glob / Bash / Write / TodoWrite): Claude Code header,
+   * optional muted summary, and a monospace output box that can fold long output.
+   */
+  async toolTurn(step: Extract<FakeStep, { kind: 'tool' }>, animate: boolean) {
+    const isBash = step.tool === 'Bash';
+    const isTodo = step.tool === 'TodoWrite';
+    const label = isTodo ? 'todo' : isBash ? `$ ${step.target}` : `${step.tool.toLowerCase()} ${step.target}`;
+    const linkish = step.tool === 'Read' || step.tool === 'Write';
+    const { turn, body } = this.beginAssistant(label, {
+      tool: {
+        name: isTodo ? 'Update Todos' : step.tool,
+        target: step.target || undefined,
+        link: linkish,
+      },
+      tone: step.failed ? 'fail' : 'ok',
+    });
+    turn.classList.add('tool-turn', `tool-kind-${step.tool.toLowerCase()}`);
+    if (step.failed) turn.classList.add('tool-failed');
+
+    if (animate) {
+      turn.classList.add('tl-progress');
+      const myEpoch = epochNow();
+      const ok = await pause(step.runMs);
+      if (!ok || myEpoch !== epochNow()) return;
+    }
+
+    if (step.summary) body.appendChild(el('div', 'tool-summary muted', step.summary));
+
+    if (step.output.length) {
+      const box = el('div', isTodo ? 'tool-output todo-list' : 'tool-output');
+      body.appendChild(box);
+      const limit = step.collapseAfter && step.output.length > step.collapseAfter + 1 ? step.collapseAfter : step.output.length;
+      const visible = step.output.slice(0, limit);
+      const hidden = step.output.slice(limit);
+      const renderLine = (line: string) => {
+        const row = el('div', 'tool-line', line === '' ? ' ' : line);
+        if (isTodo) {
+          if (line.startsWith('☒')) row.classList.add('todo-done');
+          else if (line.startsWith('◐')) row.classList.add('todo-active');
+        }
+        box.appendChild(row);
+      };
+      if (animate) await revealLines(visible, renderLine, () => this.scroll());
+      else visible.forEach(renderLine);
+      if (hidden.length) {
+        const more = el('div', 'tool-more', `… +${hidden.length} lines`);
+        more.addEventListener('click', () => {
+          more.remove();
+          hidden.forEach(renderLine);
+          this.scroll();
+        });
+        box.appendChild(more);
+      }
+    }
+    turn.classList.remove('tl-progress');
+    this.scroll();
   }
 
   // ---- diff block ----

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- 伪装生成器重做:老板模式的每个回合不再是固定的「思考 → 一段话 → 一个 diff」,而是按场景(修 bug / 加功能 / 重构 / 解释 / 跑测试 / 性能 / review / 杂务)拼出的多步工具调用——`Read`(行数 / 节选)、`Grep`(带路径行号的匹配)、`Glob`、`Bash`(按工程语言生成 vitest / jest / pytest / go test / cargo test、tsc / mypy、eslint / ruff、git status / diff / log 等输出,含失败→修复→重跑)、`Write`(新文件 / 测试文件)、`Update Todos`、多个 `Edit`。同一文件在整个会话里路径一致。
+- 延迟更真实:每一步都预先随机生成「思考停顿」和「工具执行时长」(偏态分布,Read 快、测试慢、偶尔长时间卡顿),流式文字按块大小抖动、句末 / 换行多停一拍、偶发短暂停滞;工具调用期间圆点保持进行中状态。`fakeThinkingSpeed` 同时缩放这些停顿。
+- 模板池大幅扩充:提问 60+ 条、思考 / 过渡 / 结论语按场景分组,总结语支持 Markdown 列表;相邻回合避免同一场景。
+- 阅读模式的章节间穿插也随机使用 Read / Grep / Bash / Edit 组合,不再只有 diff。
 - `claude` 风格改为还原 Claude Code for VS Code 插件界面:配色跟随 VSCode 主题(不再固定纯黑),时间线圆点与连线、带边框的用户气泡、`Edit 文件 +N -M` / `Read 章节` 工具调用、带行号的 diff、可折叠的 `Thinking`、会话标题栏、Claude Code 同款输入框(`/` 命令按钮、模型标签、方形发送按钮,老板模式下切到 "Edit automatically" 配色)。
 - `claude` 风格默认正文字号 13px(与 Claude Code 一致);隐藏 `A-` / `A+`,改用 `Ctrl/Cmd` + `+` / `-`;`Ctrl/Cmd+0` 复位到当前风格的默认字号。
 - 每章末尾一段下方显示复制 / 书签按钮(书签 = `/书签 add`)。

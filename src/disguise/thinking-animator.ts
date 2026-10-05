@@ -35,11 +35,3 @@ export function readingThinkingLog(): string[] {
   }
   return out;
 }
-
-export function bossThinkingLog(fileName: string): string[] {
-  return [
-    `reading ${fileName}…`,
-    'building dependency graph…',
-    'analyzing hot paths…',
-  ];
-}

@@ -110,7 +110,7 @@
 ## 📖 阅读体验
 
 - `/next` 一次输出**一整章**,光标(滚动条)固定在这一页的开头,你自己往下滚着读,节奏自己掌握。
-- 章节之间穿插的 `Edit xxx.ts` 工具调用(codex / deepseek 风格里是 `● assistant · edited xxx.ts`)+ 代码 diff 是伪装效果,可在配置里关闭或调频率。
+- 章节之间穿插的 `Edit xxx.ts` / `Read` / `Grep` / `Bash` 工具调用(codex / deepseek 风格里是 `● assistant · edited xxx.ts`、`$ npm test` 等)+ 代码 diff / 命令输出是伪装效果,可在配置里关闭或调频率。
 - 觉得字小 / 字大,用 `Ctrl/Cmd` + `+` / `-` 直接调(codex / deepseek 风格也可以点输入框左下角的 `A-` `A+`);`Ctrl/Cmd+0` 回到默认。
 - 换个观感用 `/theme`,详见上面的[阅读风格](#-阅读风格theme)。
 - 进度按字符级保存,关掉 VSCode 重开也能接着读。
