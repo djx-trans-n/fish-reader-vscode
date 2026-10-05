@@ -39,11 +39,38 @@ export interface DiffHunk {
   lines: DiffLine[];
 }
 
+/** Tools the fake assistant can appear to call (Claude Code's tool names). */
+export type FakeToolName = 'Read' | 'Grep' | 'Glob' | 'Bash' | 'Write' | 'TodoWrite' | 'WebFetch';
+
+/**
+ * One step of a fake assistant turn. `delayMs` is the "model is thinking" pause before the
+ * step appears; `runMs` (tools only) is how long the call shows as in-progress before its
+ * output lands. Both are pre-rolled by the generator so every turn paces differently.
+ */
+export type FakeStep =
+  | { kind: 'thinking'; lines: string[]; delayMs: number }
+  | { kind: 'text'; text: string; delayMs: number }
+  | { kind: 'edit'; diff: DiffHunk; delayMs: number; runMs: number }
+  | {
+      kind: 'tool';
+      tool: FakeToolName;
+      /** What follows the tool name in the header: a path, a pattern, a shell command. */
+      target: string;
+      /** Monospace output lines (may be empty). */
+      output: string[];
+      /** Muted one-liner under the header, e.g. "Read 142 lines" / "Found 7 matches". */
+      summary?: string;
+      /** Red dot + error styling (a failing test run, a missing file). */
+      failed?: boolean;
+      /** Only show the first N output lines; the rest hide behind "… +K lines". */
+      collapseAfter?: number;
+      delayMs: number;
+      runMs: number;
+    };
+
 export interface FakeTurn {
   prompt: string;
-  thinking: string[];
-  analysis: string;
-  diff?: DiffHunk;
+  steps: FakeStep[];
 }
 
 export interface StatusData {
@@ -74,7 +101,7 @@ export type ToWebview =
   | { type: 'user-echo'; text: string }
   | { type: 'thinking'; lines: string[] }
   | { type: 'paragraph'; text: string; meta: PageMeta; diffs: DiffHunk[]; done?: boolean }
-  | { type: 'disguise'; analysis: string; diff: DiffHunk }
+  | { type: 'disguise'; steps: FakeStep[] }
   | { type: 'page-begin' }
   | { type: 'page-end' }
   | { type: 'assistant-text'; text: string; label?: string; markdown?: boolean }

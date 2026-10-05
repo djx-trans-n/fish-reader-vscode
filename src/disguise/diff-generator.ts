@@ -94,35 +94,6 @@ function syntheticAdds(lang: string): DiffLine[] {
   }
 }
 
-const ANALYSIS_BY_CATEGORY: Record<string, string[]> = {
-  refactor: [
-    'Pulled the repeated literal in {f} into a named constant.',
-    'Simplified this branch in {f} — the loop collapses to one expression.',
-    'Hoisted the lookup in {f} so it only runs once per call.',
-    'Renamed for clarity and extracted the inline value in {f}.',
-  ],
-  feature: [
-    'Added a small helper in {f} to cover the retry path.',
-    'Wired up the missing edge-case handler in {f}.',
-    'Introduced a memoization layer in {f} for the hot path.',
-  ],
-  fix: [
-    'Guarded against the null case in {f} — this would throw on empty input.',
-    'Fixed the off-by-one in {f}; the boundary check was inclusive.',
-    'Corrected the default in {f} so missing keys no longer crash.',
-  ],
-  chore: [
-    'Tidied the comments and imports in {f}.',
-    'Normalized formatting in {f}, no behavior change.',
-  ],
-};
-
-/** A short fake "what I just changed" line to precede a diff (reading disguise). */
-export function analysisFor(hunk: DiffHunk): string {
-  const pool = ANALYSIS_BY_CATEGORY[hunk.category] || ANALYSIS_BY_CATEGORY.refactor;
-  return pick(pool).replace(/\{f\}/g, hunk.fileName);
-}
-
 /** Decide whether to emit a diff and how many consecutive ones. */
 export function diffPlan(frequency: number): number {
   if (Math.random() > frequency) return 0;

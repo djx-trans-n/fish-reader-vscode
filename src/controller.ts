@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import { ToWebview, FromWebview, DiffHunk, StatusData } from './types';
+import { ToWebview, FromWebview, StatusData } from './types';
 import { ReaderEngine } from './engine/reader';
 import { decodeBuffer } from './engine/encoding';
 import { parseEpub } from './engine/formats/epub';
@@ -9,9 +9,8 @@ import { chaptersToText } from './engine/formats/structured';
 import { StateStore, bookId, BookRecord } from './engine/state';
 import { COMMANDS, parseInput } from './commands/registry';
 import { WorkspaceScanner } from './disguise/workspace-scanner';
-import { generateFakeDiff, analysisFor } from './disguise/diff-generator';
 import { Segment } from './engine/paginator';
-import { generateBossConversation } from './disguise/boss-mode';
+import { generateBossConversation, generateReadingDisguise } from './disguise/boss-mode';
 import { initThinkingLog } from './disguise/thinking-animator';
 
 type Poster = (msg: ToWebview) => void;
@@ -384,23 +383,17 @@ export class Controller {
 
       const isLast = i === segments.length - 1;
       if (diffEnabled && !seg.meta.atChapterStart && !isLast && Math.random() < freq) {
-        const diff = this.oneDiff();
-        this.post({ type: 'disguise', analysis: analysisFor(diff), diff });
-        this.bumpStatus(1);
+        const steps = generateReadingDisguise({
+          cache: this.scanner.get(),
+          diffSource: this.cfg().get<'workspace' | 'builtin'>('fakeDiff.snippetSource', 'workspace'),
+          lang: this.cfg().get<string>('fakeDiff.language', 'auto'),
+        });
+        this.post({ type: 'disguise', steps });
+        this.bumpStatus(steps.filter((s) => s.kind === 'edit').length || 1);
       }
     }
     this.post({ type: 'page-end' });
     this.onBooksChanged?.();
-  }
-
-  private oneDiff(): DiffHunk {
-    const cache = this.scanner.get();
-    return generateFakeDiff({
-      lang: this.cfg().get<string>('fakeDiff.language', 'auto'),
-      primaryLang: cache.primaryLang,
-      fileNamePool: cache.files,
-      snippetSource: this.cfg().get<'workspace' | 'builtin'>('fakeDiff.snippetSource', 'workspace'),
-    });
   }
 
   private bumpStatus(diffCount: number) {

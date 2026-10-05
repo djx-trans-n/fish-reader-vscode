@@ -203,7 +203,7 @@ window.addEventListener('message', (ev: MessageEvent<ToWebview>) => {
       enqueue(async () => ui.paragraph(msg.text, msg.meta, msg.diffs));
       break;
     case 'disguise':
-      enqueue(async () => ui.disguiseTurn(msg.analysis, msg.diff));
+      enqueue(async () => ui.playStepsInstant(msg.steps));
       break;
     case 'page-end':
       // Pin viewport to the start of the freshly-rendered page; user scrolls down.
@@ -257,9 +257,7 @@ window.addEventListener('message', (ev: MessageEvent<ToWebview>) => {
       setComposerMode(true);
       for (const t of msg.turns) {
         enqueue(async () => ui.user(t.prompt));
-        enqueue(() => ui.thinking(t.thinking));
-        enqueue(() => ui.streamText(undefined, t.analysis));
-        if (t.diff) enqueue(() => ui.editTurn(t.diff!, true));
+        for (const step of t.steps) enqueue(() => ui.playStep(step, true));
       }
       break;
     case 'boss-exit':
